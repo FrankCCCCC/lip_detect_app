@@ -1,9 +1,11 @@
 import React from 'react';
 import * as faceapi from 'face-api.js';
+import {hexToRgb, compareLipstick} from './readLipsticks'
 import logo from './logo.svg';
 import testImage from './bonnie.jpg'
 import './App.css';
 import lipsticks from './lipstick.json'
+import { round } from 'face-api.js/build/commonjs/utils';
 
 const MODEL_URL = '/models'
 
@@ -39,11 +41,33 @@ class App extends React.Component {
     ctx.drawImage(image,0,0,width,height);
   }
 
+  avgColor(mouthColors){
+    let r = 0, g = 0, b = 0
+    let len = mouthColors.length
+    // console.log(mouthColors.length)
+    for(let i = 0; i < mouthColors.length; i++){
+      // console.log(mouthColors[0])
+
+      r+=mouthColors[i][0]
+      g+=mouthColors[i][1]
+      b+=mouthColors[i][2]
+    }
+
+    return {
+      r: Math.round(r / len),
+      g: Math.round(g / len),
+      b: Math.round(b / len),
+    }
+  }
+
   async recognizeLipstick(canvas){
     const landmarks = await faceapi.detectSingleFace(canvas).withFaceLandmarks()
     let mouthPoint = landmarks.landmarks.getMouth()
     this.getMouthColor(canvas,mouthPoint)
     console.log(this.mouthColors)
+    console.log(this.avgColor(this.mouthColors))
+    console.log(compareLipstick(this.avgColor(this.mouthColors)))
+    console.log(lipsticks)
   }
   
 
