@@ -1,89 +1,71 @@
 import React from 'react';
-import * as faceapi from 'face-api.js';
-import {hexToRgb, compareLipstick} from './readLipsticks'
+import {initModel, recognizeLipstick} from './faceapi/api'
+import ImageUploader from './components/ImageUploader'
 import logo from './logo.svg';
 import testImage from './bonnie.jpg'
 import './App.css';
-import lipsticks from './lipstick.json'
-import { round } from 'face-api.js/build/commonjs/utils';
-
-const MODEL_URL = '/models'
 
 class App extends React.Component {
   constructor(props) {
     super(props)
     this.canvas = React.createRef();
     this.mouthColors = []
-  }
+    this.lipColor = {}
 
-  async initModel() {
-    console.log("Init Model")
-    try{
-      await faceapi.loadFaceDetectionModel(MODEL_URL)
-      await faceapi.loadFaceLandmarkModel(MODEL_URL)
-      await faceapi.loadFaceRecognitionModel(MODEL_URL)
-      console.log("Loaded Model")
-    }catch(err){
-      console.log("Loaded Model Failed")
+    this.state = {
+      img: undefined,
+      lipstick: undefined
     }
+
+    this.getImage = this.getImage.bind(this)
   }
 
-  getMouthColor (canvans, mouthPoint) {
-    let context = canvans.getContext("2d")
-    for (let i =0;i<mouthPoint.length;i++){
-      let data = context.getImageData(mouthPoint[i]["_x"],mouthPoint[i]["_y"],1,1)
-      this.mouthColors[i] = data.data
-    }
-  }
-
-  drawHTMLImage(canvas,image,width,height){
+  drawHTMLImage(canvas,image){
     const ctx = canvas.getContext("2d");
-    ctx.drawImage(image,0,0,width,height);
+    ctx.drawImage(image, 0, 0);
   }
 
-  avgColor(mouthColors){
-    let r = 0, g = 0, b = 0
-    let len = mouthColors.length
-    // console.log(mouthColors.length)
-    for(let i = 0; i < mouthColors.length; i++){
-      // console.log(mouthColors[0])
+  async getImage(img){
+    
 
-      r+=mouthColors[i][0]
-      g+=mouthColors[i][1]
-      b+=mouthColors[i][2]
+    // this.drawHTMLImage(this.canvas.current,this.state.img);
+    // let imgEle = new Image()
+    // imgEle.src = img
+    // this.drawHTMLImage(this.canvas.current,imgEle,296,296);
+
+
+    // let imgEle = new Image()
+    // let mycanvas = document.createElement('canvas')
+    // let ctx = mycanvas.getContext('2d')
+    // imgEle.onload = function(){
+    //     ctx.drawImage(imgEle, 0, 0);
+    // };
+    // imgEle.src = img;
+    let lipstick = await recognizeLipstick(img)
+    this.lipColor = lipstick
+    console.log(lipstick)
+    console.log(this.lipColor)
+    this.setState({
+      img: img,
+      lipstick: lipstick.lipstickColor
+    })
+  }
+
+  async componentDidMount() {
+    await initModel()
+    if(this.state.img !== undefined){
+      const testImageHTML = document.getElementById('test')
+      this.drawHTMLImage(this.canvas.current,this.state.img,296,296);
+      this.lipColor = await recognizeLipstick(this.canvas.current)
+      console.log(this.lipColor)
     }
-
-    return {
-      r: Math.round(r / len),
-      g: Math.round(g / len),
-      b: Math.round(b / len),
-    }
-  }
-
-  async recognizeLipstick(canvas){
-    const landmarks = await faceapi.detectSingleFace(canvas).withFaceLandmarks()
-    let mouthPoint = landmarks.landmarks.getMouth()
-    this.getMouthColor(canvas,mouthPoint)
-    console.log(this.mouthColors)
-    console.log(this.avgColor(this.mouthColors))
-    console.log(compareLipstick(this.avgColor(this.mouthColors)))
-    console.log(lipsticks)
-  }
-  
-
-  async componentDidMount(props) {
-    await this.initModel()
-    const testImageHTML = document.getElementById('test')
-    this.drawHTMLImage(this.canvas.current,testImageHTML,296,296);
-    // await this.getFullFaceDescription(this.canvas.current);
-    // this.drawDescription(this.canvas.current);
-    await this.recognizeLipstick(this.canvas.current)
+    
   }
   
   render() {
     return (
       <div className="App">
-        <header className="App-header">
+        {/* <header className="App-header">
           <img src={logo} className="App-logo" alt="logo" />
           <p>
             Edit <code>src/App.js</code> and save to reload.
@@ -96,10 +78,12 @@ class App extends React.Component {
           >
             Learn React
           </a>
-        </header>
-
-        <img id="test" src={testImage} alt="test" />
-        <canvas ref={this.canvas} width={296} height={296} />
+        </header> */}
+        <ImageUploader getImage={this.getImage}/>
+        {/* {this.state.img !== undefined? <img id="test" src={this.state.img} alt="test" /> : <div></div>} */}
+        {/* {this.state.img} */}
+        {/* <canvas ref={this.canvas} width={296} height={296} /> */}
+        {this.state.lipstick !== undefined? <h3 style={{color: this.state.lipstick.color}}>{this.state.lipstick.color + " " + this.state.lipstick.brand + " " + this.state.lipstick.series + " " + this.state.lipstick.name}</h3> : <h3></h3>}
       </div>
     );
   }
